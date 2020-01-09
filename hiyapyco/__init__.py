@@ -82,6 +82,7 @@ class HiYaPyCo():
           * loglevel: one of  the valid levels from the logging module
           * failonmissingfiles: boolean (default: True)
           * loglevelmissingfiles
+          * noneoverwrites: boolean (default: False)
 
         Returns a representation of the merged and (if requested) interpolated config.
         Will mostly be a OrderedDict (dict if usedefaultyamlloader), but can be of any other type, depending on the yaml files.
@@ -163,6 +164,16 @@ class HiYaPyCo():
         if 'loglevel' in kwargs:
             logger.setLevel(kwargs['loglevel'])
             del kwargs['loglevel']
+
+        self.noneoverwrites = False
+        if 'noneoverwrites' in kwargs:
+            if not isinstance(kwargs['noneoverwrites'], bool):
+                raise HiYaPyCoInvocationException(
+                        'value of "noneoverwrites" must be boolean (got: "%s" as %s)' %
+                        (kwargs['noneoverwrites'], type(kwargs['noneoverwrites']),)
+                        )
+            self.noneoverwrites = kwargs['noneoverwrites']
+            del kwargs['noneoverwrites']
 
         if kwargs:
             raise HiYaPyCoInvocationException('undefined keywords: %s' % ' '.join(kwargs.keys()))
@@ -321,11 +332,11 @@ class HiYaPyCo():
     def _deepmerge(self, a, b):
         logger.debug('>'*30)
         logger.debug('deepmerge %s and %s' % (a, b,))
-        # FIXME: make None usage configurable
-        if b is None:
-            logger.debug('pass as b is None')
-            pass
-        if a is None or isinstance(b, primitiveTypes):
+        if b is None and self.noneoverwrites:
+            if isinstance(a, listTypes):
+                logger.debug('return empty list as a is a list and b is None')
+                a = []
+        elif a is None or isinstance(b, primitiveTypes):
             logger.debug('deepmerge: replace a "%s"  w/ b "%s"' % (a, b,))
             a = b
         elif isinstance(a, listTypes):
