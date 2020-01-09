@@ -83,6 +83,7 @@ class HiYaPyCo():
           * failonmissingfiles: boolean (default: True)
           * loglevelmissingfiles
           * noneoverwrites: boolean (default: False)
+          * emptyoverwrites: boolean (default: False)
 
         Returns a representation of the merged and (if requested) interpolated config.
         Will mostly be a OrderedDict (dict if usedefaultyamlloader), but can be of any other type, depending on the yaml files.
@@ -174,6 +175,16 @@ class HiYaPyCo():
                         )
             self.noneoverwrites = kwargs['noneoverwrites']
             del kwargs['noneoverwrites']
+
+        self.emptyoverwrites = False
+        if 'emptyoverwrites' in kwargs:
+            if not isinstance(kwargs['emptyoverwrites'], bool):
+                raise HiYaPyCoInvocationException(
+                        'value of "emptyoverwrites" must be boolean (got: "%s" as %s)' %
+                        (kwargs['emptyoverwrites'], type(kwargs['emptyoverwrites']),)
+                        )
+            self.emptyoverwrites = kwargs['emptyoverwrites']
+            del kwargs['emptyoverwrites']
 
         if kwargs:
             raise HiYaPyCoInvocationException('undefined keywords: %s' % ' '.join(kwargs.keys()))
@@ -340,7 +351,7 @@ class HiYaPyCo():
             logger.debug('deepmerge: replace a "%s"  w/ b "%s"' % (a, b,))
             a = b
         elif isinstance(a, listTypes):
-            if isinstance(b, listTypes):
+            if isinstance(b, listTypes) and len(b) > 0:
                 logger.debug('deepmerge: lists extend %s:"%s" by %s:"%s"' % (type(a), a, type(b), b,))
                 a.extend(be for be in b if be not in a and
                             (isinstance(be, primitiveTypes) or isinstance(be, listTypes))
@@ -372,6 +383,9 @@ class HiYaPyCo():
                 for k in srcdicts.keys():
                     logger.debug('deepmerge list: new dict append %s:%s' % (k, srcdicts[k]))
                     a.append(srcdicts[k])
+            elif isinstance(b, listTypes) and len(b) == 0 and self.emptyoverwrites:
+                logger.debug("deepmerge list: b is empty list, b explicitly overwrites a due to 'emptyoverwrites' option")
+                a = b
             else:
                 raise HiYaPyCoImplementationException(
                         'can not merge %s to %s (@ "%s"  try to merge "%s")' %
